@@ -1,4 +1,5 @@
 import type { Atlas, TileAtlasEntry } from '../atlas';
+import type { IRenderer } from '../renderer';
 import type { Vector2 } from '../vector';
 
 export class FontCharacter {
@@ -66,7 +67,7 @@ export abstract class Font {
   abstract getFrame(): TileAtlasEntry;
 
   public render(
-    ctx: CanvasRenderingContext2D,
+    ctx: IRenderer,
     text: string,
     position: Vector2,
     color = '#fff',

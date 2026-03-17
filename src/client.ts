@@ -121,6 +121,12 @@ import {
   TalkReportClientPacket,
   TalkTellClientPacket,
   ThreeItem,
+  TradeAcceptClientPacket,
+  TradeAddClientPacket,
+  TradeAgreeClientPacket,
+  TradeCloseClientPacket,
+  Item as TradeItem,
+  TradeRemoveClientPacket,
   TradeRequestClientPacket,
   TrainType,
   Version,
@@ -194,6 +200,7 @@ import { registerMusicHandlers } from './handlers/music';
 import { registerNpcHandlers } from './handlers/npc';
 import { registerPaperdollHandlers } from './handlers/paperdoll';
 import { registerPartyHandlers } from './handlers/party';
+import { registerTradeHandlers } from './handlers/trade';
 import { registerPlayersHandlers } from './handlers/players';
 import { registerQuestHandlers } from './handlers/quest';
 import { registerRangeHandlers } from './handlers/range';
@@ -244,6 +251,7 @@ import { padWithZeros } from './utils/pad-with-zeros';
 import { randomRange } from './utils/random-range';
 import { getDistance, inRange } from './utils/range';
 import { screenToIso } from './utils/screen-to-iso';
+import type { IRenderer } from './renderer';
 import type { Vector2 } from './vector';
 
 export enum ChatTab {
@@ -310,6 +318,13 @@ type ClientEvents = {
   bankUpdated: undefined;
   boardOpened: { posts: BoardPostListing[] };
   postRead: { postId: number; body: string };
+  tradeRequested: { partnerId: number; partnerName: string };
+  tradeOpened: { myName: string; partnerName: string };
+  tradeOfferUpdated: { myOffer: Item[]; partnerOffer: Item[] };
+  tradePartnerAgreed: { agree: boolean };
+  tradeYouAgreed: { agree: boolean };
+  tradeCompleted: undefined;
+  tradeClosed: undefined;
   lockerOpened: { items: ThreeItem[] };
   lockerChanged: { items: ThreeItem[] };
   skillMasterOpened: {
@@ -563,6 +578,12 @@ export class Client {
   lockerUpgrades = 0;
   boardId = 0;
   boardPosts: BoardPostListing[] = [];
+  tradePartnerId = 0;
+  tradePartnerName = '';
+  myTradeOffer: Item[] = [];
+  partnerTradeOffer: Item[] = [];
+  myTradeAgree = false;
+  partnerTradeAgree = false;
   lockerCoords = new Coords();
   atlas: Atlas;
   hotbarSlots: Slot[] = [];
@@ -1140,7 +1161,7 @@ export class Client {
     }
   }
 
-  render(ctx: CanvasRenderingContext2D, interpolation: number) {
+  render(ctx: IRenderer, interpolation: number) {
     this.mapRenderer.render(ctx, this.interpolation ? interpolation : 1);
     this.minimapRenderer.render(ctx, this.interpolation ? interpolation : 1);
   }
@@ -1460,6 +1481,7 @@ export class Client {
     registerSpellHandlers(this);
     registerCastHandlers(this);
     registerPartyHandlers(this);
+    registerTradeHandlers(this);
   }
 
   occupied(coords: Vector2): boolean {
@@ -3406,6 +3428,38 @@ export class Client {
   requestTrade(playerId: number) {
     const packet = new TradeRequestClientPacket();
     packet.playerId = playerId;
+    this.bus.send(packet);
+  }
+
+  acceptTrade(playerId: number) {
+    const packet = new TradeAcceptClientPacket();
+    packet.playerId = playerId;
+    this.bus.send(packet);
+  }
+
+  addTradeItem(itemId: number, amount: number) {
+    const item = new TradeItem();
+    item.id = itemId;
+    item.amount = amount;
+    const packet = new TradeAddClientPacket();
+    packet.addItem = item;
+    this.bus.send(packet);
+  }
+
+  removeTradeItem(itemId: number) {
+    const packet = new TradeRemoveClientPacket();
+    packet.itemId = itemId;
+    this.bus.send(packet);
+  }
+
+  agreeToTrade(agree: boolean) {
+    const packet = new TradeAgreeClientPacket();
+    packet.agree = agree;
+    this.bus.send(packet);
+  }
+
+  cancelTrade() {
+    const packet = new TradeCloseClientPacket();
     this.bus.send(packet);
   }
 

@@ -17,6 +17,7 @@ import {
 import './css/style.css';
 import 'notyf/notyf.min.css';
 import { PacketBus } from './bus';
+import { CanvasRenderer } from './canvas-renderer';
 import { ChatTab, Client, GameState } from './client';
 import {
   GAME_FPS,
@@ -67,6 +68,7 @@ import { SmallAlertSmallHeader } from './ui/small-alert-small-header';
 import { SmallConfirm } from './ui/small-confirm';
 import { SpellBook } from './ui/spell-book';
 import { Stats } from './ui/stats/stats';
+import { TradeDialog } from './ui/trade-dialog';
 import { capitalize } from './utils/capitalize';
 import { randomRange } from './utils/random-range';
 
@@ -78,6 +80,8 @@ if (!ctx) {
   throw new Error('Failed to get canvas context!');
 }
 ctx.imageSmoothingEnabled = false;
+
+const renderer = new CanvasRenderer(ctx);
 
 const client = new Client();
 const mobileControls = new MobileControls();
@@ -172,9 +176,8 @@ const render = (now: DOMHighResTimeStamp) => {
 
   const interpolation = accumulator / TICK;
 
-  ctx.fillStyle = '#000';
-  ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
-  client.render(ctx, interpolation);
+  renderer.fillRect('#000', 0, 0, GAME_WIDTH, GAME_HEIGHT);
+  client.render(renderer, interpolation);
   requestAnimationFrame(render);
 };
 
@@ -326,6 +329,45 @@ client.on('boardOpened', ({ posts }) => {
   boardDialog.show();
 });
 
+client.on('tradeRequested', ({ partnerId, partnerName }) => {
+  const strings = client.getDialogStrings(DialogResourceID.TRADE_REQUEST);
+  smallConfirm.setContent(
+    `${capitalize(partnerName)} ${strings[1]}`,
+    strings[0],
+  );
+  smallConfirm.setCallback(() => {
+    client.acceptTrade(partnerId);
+  });
+  smallConfirm.show();
+});
+
+client.on('tradeOpened', ({ myName, partnerName }) => {
+  tradeDialog.open(myName, partnerName);
+});
+
+client.on('tradeOfferUpdated', ({ myOffer, partnerOffer }) => {
+  tradeDialog.updateOffers(myOffer, partnerOffer);
+});
+
+client.on('tradeYouAgreed', ({ agree }) => {
+  tradeDialog.updateMyAgree(agree);
+});
+
+client.on('tradePartnerAgreed', ({ agree }) => {
+  tradeDialog.updatePartnerAgree(agree);
+});
+
+client.on('tradeCompleted', () => {
+  tradeDialog.hide();
+  const strings = client.getDialogStrings(DialogResourceID.TRADE_SUCCESS);
+  smallAlert.setContent(strings[1], strings[0]);
+  smallAlert.show();
+});
+
+client.on('tradeClosed', () => {
+  tradeDialog.hide();
+});
+
 client.on('lockerOpened', ({ items }) => {
   lockerDialog.setItems(items);
   lockerDialog.show();
@@ -418,6 +460,17 @@ const hud = new HUD();
 const itemAmountDialog = new ItemAmountDialog();
 const questDialog = new QuestDialog(client);
 const chestDialog = new ChestDialog(client);
+const tradeDialog = new TradeDialog(client);
+
+tradeDialog.on('agree', () => {
+  const strings = client.getDialogStrings(DialogResourceID.TRADE_DO_YOU_AGREE);
+  smallConfirm.setContent(strings[1], strings[0]);
+  smallConfirm.setCallback(() => {
+    client.agreeToTrade(true);
+  });
+  smallConfirm.show();
+});
+
 const shopDialog = new ShopDialog(client);
 const boardDialog = new BoardDialog(client);
 const bankDialog = new BankDialog(client);
@@ -786,6 +839,50 @@ inventory.on('addLockerItem', (itemId) => {
     itemAmountDialog.show();
   } else {
     client.addLockerItem(itemId, 1);
+  }
+});
+
+inventory.on('addTradeItem', (itemId) => {
+  if (client.myTradeAgree) {
+    return;
+  }
+
+  const item = client.items.find((i) => i.id === itemId);
+  if (!item) {
+    return;
+  }
+
+  const record = client.getEifRecordById(itemId);
+  if (!record) {
+    return;
+  }
+
+  if (record.special === ItemSpecial.Lore) {
+    const strings = client.getDialogStrings(DialogResourceID.ITEM_IS_LORE_ITEM);
+    smallAlert.setContent(strings[1], strings[0]);
+    smallAlert.show();
+    return;
+  }
+
+  if (item.amount > 1) {
+    client.typing = true;
+    itemAmountDialog.setMaxAmount(item.amount);
+    itemAmountDialog.setHeader('trade');
+    itemAmountDialog.setLabel(
+      `${client.getResourceString(EOResourceID.DIALOG_TRANSFER_HOW_MUCH)} ${record.name} ${client.getResourceString(EOResourceID.DIALOG_TRANSFER_OFFER)}`,
+    );
+    itemAmountDialog.setCallback(
+      (amount) => {
+        client.addTradeItem(itemId, amount);
+        client.typing = false;
+      },
+      () => {
+        client.typing = false;
+      },
+    );
+    itemAmountDialog.show();
+  } else {
+    client.addTradeItem(itemId, 1);
   }
 });
 

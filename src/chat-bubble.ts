@@ -1,5 +1,7 @@
+import { CanvasRenderer } from './canvas-renderer';
 import { COLORS } from './consts';
 import { type Font, TextAlign } from './fonts/base';
+import type { IRenderer } from './renderer';
 import type { Vector2 } from './vector';
 
 const softLimit = 100;
@@ -15,6 +17,7 @@ export class ChatBubble {
   private message: string;
   private canvas: HTMLCanvasElement;
   private ctx: CanvasRenderingContext2D;
+  private ctxRenderer: CanvasRenderer;
   private rendered = false;
   private font: Font;
   private foreground: string;
@@ -34,13 +37,14 @@ export class ChatBubble {
     this.ticks = 24 + Math.floor(message.length / 3);
     this.canvas = document.createElement('canvas');
     this.ctx = this.canvas.getContext('2d');
+    this.ctxRenderer = new CanvasRenderer(this.ctx);
   }
 
   tick() {
     this.ticks = Math.max(this.ticks - 1, 0);
   }
 
-  render(position: Vector2, ctx: CanvasRenderingContext2D) {
+  render(position: Vector2, ctx: IRenderer) {
     if (!this.rendered) {
       const lines = this.wrapText(this.message);
       const width =
@@ -83,7 +87,7 @@ export class ChatBubble {
 
       for (const [index, line] of lines.entries()) {
         this.font.render(
-          this.ctx,
+          this.ctxRenderer,
           line,
           { x: halfWidth, y: 3 + index * lineHeight },
           this.foreground,

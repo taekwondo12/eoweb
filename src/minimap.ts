@@ -1,6 +1,7 @@
 import { Direction, MapTileSpec, NpcType } from 'eolib';
 import { StaticAtlasEntryType } from './atlas';
 import type { Client } from './client';
+import type { IRenderer } from './renderer';
 import { DEATH_TICKS } from './consts';
 import { HALF_GAME_HEIGHT, HALF_GAME_WIDTH } from './game-state';
 import { CharacterDeathAnimation } from './render/character-death';
@@ -106,7 +107,7 @@ export class MinimapRenderer {
     };
   }
 
-  render(ctx: CanvasRenderingContext2D, interpolation: number) {
+  render(ctx: IRenderer, interpolation: number) {
     if (!this.client.minimapEnabled) {
       return;
     }
@@ -151,7 +152,7 @@ export class MinimapRenderer {
 
     playerScreen.x += this.client.quakeOffset;
 
-    ctx.globalAlpha = 0.5;
+    ctx.setAlpha(0.5);
     for (let y = player.y - RANGE; y <= player.y + RANGE; y++) {
       for (let x = player.x - RANGE; x <= player.x + RANGE; x++) {
         if (
@@ -251,7 +252,7 @@ export class MinimapRenderer {
       const sourceX = START_X + icon * TILE_WIDTH + icon;
 
       if (dying) {
-        ctx.globalAlpha = 0.5 * (dyingTicks / DEATH_TICKS);
+        ctx.setAlpha(0.5 * (dyingTicks / DEATH_TICKS));
       }
 
       ctx.drawImage(
@@ -267,7 +268,7 @@ export class MinimapRenderer {
       );
 
       if (dying) {
-        ctx.globalAlpha = 0.5;
+        ctx.setAlpha(0.5);
       }
     }
 
@@ -321,7 +322,7 @@ export class MinimapRenderer {
       const sourceX = START_X + icon * TILE_WIDTH + icon;
 
       if (dying) {
-        ctx.globalAlpha = 0.5 * (dyingTicks / DEATH_TICKS);
+        ctx.setAlpha(0.5 * (dyingTicks / DEATH_TICKS));
       }
 
       ctx.drawImage(
@@ -337,11 +338,11 @@ export class MinimapRenderer {
       );
 
       if (dying) {
-        ctx.globalAlpha = 0.5;
+        ctx.setAlpha(0.5);
       }
     }
 
-    ctx.globalAlpha = 1;
+    ctx.setAlpha(1);
   }
 }
 

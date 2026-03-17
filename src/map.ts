@@ -66,6 +66,7 @@ import { NpcWalkAnimation } from './render/npc-walk';
 import { capitalize } from './utils/capitalize';
 import { getItemGraphicId } from './utils/get-item-graphic-id';
 import { isoToScreen } from './utils/iso-to-screen';
+import type { IRenderer } from './renderer';
 import type { Vector2 } from './vector';
 
 enum EntityType {
@@ -261,7 +262,7 @@ export class MapRenderer {
     };
   }
 
-  render(ctx: CanvasRenderingContext2D, interpolation: number) {
+  render(ctx: IRenderer, interpolation: number) {
     if (!this.client.map || this.buildingCache) {
       return;
     }
@@ -294,7 +295,7 @@ export class MapRenderer {
 
     playerScreen.x += this.client.quakeOffset;
 
-    const diag = Math.hypot(ctx.canvas.width, ctx.canvas.height);
+    const diag = Math.hypot(ctx.width, ctx.height);
     const rangeX = Math.min(
       this.client.map.width,
       Math.ceil(diag / HALF_TILE_WIDTH) + 2,
@@ -492,11 +493,11 @@ export class MapRenderer {
         e.type === EntityType.Character && e.typeId === this.client.playerId,
     );
     if (main) {
-      ctx.globalAlpha = 0.4;
+      ctx.setAlpha(0.4);
 
       this.renderCharacter(main, playerScreen, ctx, true);
 
-      ctx.globalAlpha = 1;
+      ctx.setAlpha(1);
     }
 
     this.renderNameplate(playerScreen, ctx);
@@ -507,7 +508,7 @@ export class MapRenderer {
     this.renderPlayerMenu(ctx);
   }
 
-  renderNameplate(playerScreen: Vector2, ctx: CanvasRenderingContext2D) {
+  renderNameplate(playerScreen: Vector2, ctx: IRenderer) {
     if (!this.client.mousePosition) {
       return;
     }
@@ -711,7 +712,7 @@ export class MapRenderer {
     this.client.sans11.render(ctx, name, { x: drawX, y: drawY }, color);
   }
 
-  renderPlayerMenu(ctx: CanvasRenderingContext2D) {
+  renderPlayerMenu(ctx: IRenderer) {
     if (!this.client.menuPlayerId) {
       return;
     }
@@ -767,7 +768,7 @@ export class MapRenderer {
   renderTile(
     entity: Entity,
     playerScreen: Vector2,
-    ctx: CanvasRenderingContext2D,
+    ctx: IRenderer,
   ) {
     if (entity.layer === Layer.Ground && entity.typeId === 0) {
       return;
@@ -866,9 +867,9 @@ export class MapRenderer {
     }
 
     if (entity.layer === Layer.Shadow) {
-      ctx.globalAlpha = 0.2;
+      ctx.setAlpha(0.2);
     } else {
-      ctx.globalAlpha = 1;
+      ctx.setAlpha(1);
     }
 
     if (entity.layer === Layer.Ground && tile.w > TILE_WIDTH) {
@@ -913,14 +914,14 @@ export class MapRenderer {
       );
     }
     if (entity.layer === Layer.Shadow) {
-      ctx.globalAlpha = 1;
+      ctx.setAlpha(1);
     }
   }
 
   renderCharacter(
     entity: Entity,
     playerScreen: Vector2,
-    ctx: CanvasRenderingContext2D,
+    ctx: IRenderer,
     justCharacter = false,
   ) {
     const character = this.client.getCharacterById(entity.typeId);
@@ -1087,7 +1088,7 @@ export class MapRenderer {
     );
 
     if (dying) {
-      ctx.globalAlpha = dyingTicks / DEATH_TICKS;
+      ctx.setAlpha(dyingTicks / DEATH_TICKS);
     }
 
     if (entity.typeId === this.client.playerId && !character.invisible) {
@@ -1104,7 +1105,7 @@ export class MapRenderer {
       );
     } else {
       if (character.invisible && this.client.admin !== AdminLevel.Player) {
-        ctx.globalAlpha = 0.4;
+        ctx.setAlpha(0.4);
         ctx.drawImage(
           atlas,
           frame.x,
@@ -1116,7 +1117,7 @@ export class MapRenderer {
           frame.w,
           frame.h,
         );
-        ctx.globalAlpha = 1;
+        ctx.setAlpha(1);
       } else if (!character.invisible) {
         ctx.drawImage(
           atlas,
@@ -1133,7 +1134,7 @@ export class MapRenderer {
     }
 
     if (dying) {
-      ctx.globalAlpha = 1;
+      ctx.setAlpha(1);
     }
 
     if (mirrored) {
@@ -1204,7 +1205,7 @@ export class MapRenderer {
     }
   }
 
-  renderNpc(e: Entity, playerScreen: Vector2, ctx: CanvasRenderingContext2D) {
+  renderNpc(e: Entity, playerScreen: Vector2, ctx: IRenderer) {
     const npc = this.client.getNpcByIndex(e.typeId);
     if (!npc) {
       return;
@@ -1351,12 +1352,12 @@ export class MapRenderer {
 
     if (meta.transparent) {
       if (!dying) {
-        ctx.globalAlpha = 0.4;
+        ctx.setAlpha(0.4);
       } else {
-        ctx.globalAlpha = 0.4 * (dyingTicks / DEATH_TICKS);
+        ctx.setAlpha(0.4 * (dyingTicks / DEATH_TICKS));
       }
     } else if (dying) {
-      ctx.globalAlpha = dyingTicks / DEATH_TICKS;
+      ctx.setAlpha(dyingTicks / DEATH_TICKS);
     }
 
     ctx.drawImage(
@@ -1372,7 +1373,7 @@ export class MapRenderer {
     );
 
     if (dying || meta.transparent) {
-      ctx.globalAlpha = 1;
+      ctx.setAlpha(1);
     }
 
     if (mirrored) {
@@ -1433,7 +1434,7 @@ export class MapRenderer {
     });
   }
 
-  renderItem(e: Entity, playerScreen: Vector2, ctx: CanvasRenderingContext2D) {
+  renderItem(e: Entity, playerScreen: Vector2, ctx: IRenderer) {
     const item = this.client.getItemByIndex(e.typeId);
     if (!item) {
       return;
@@ -1490,10 +1491,9 @@ export class MapRenderer {
     rect: Rectangle,
     label: string,
     color: string,
-    ctx: CanvasRenderingContext2D,
+    ctx: IRenderer,
   ) {
-    ctx.strokeStyle = color;
-    ctx.strokeRect(rect.position.x, rect.position.y, rect.width, rect.height);
+    ctx.strokeRect(color, rect.position.x, rect.position.y, rect.width, rect.height);
 
     const frame = this.client.atlas.getStaticEntry(StaticAtlasEntryType.Sans11);
     if (!frame) {
@@ -1505,11 +1505,11 @@ export class MapRenderer {
       return;
     }
 
-    ctx.fillStyle = color;
     ctx.fillRect(
+      color,
       rect.position.x,
       rect.position.y - 12,
-      ctx.measureText(label).width + 4,
+      ctx.measureText(label) + 4,
       12,
     );
 
@@ -1525,7 +1525,7 @@ export class MapRenderer {
   renderCursor(
     entity: Entity,
     playerScreen: Vector2,
-    ctx: CanvasRenderingContext2D,
+    ctx: IRenderer,
   ) {
     if (
       this.client.mouseCoords.x < 0 ||
@@ -1655,7 +1655,7 @@ export class MapRenderer {
   private renderHealthBar(
     healthBar: HealthBar | null,
     position: Vector2,
-    ctx: CanvasRenderingContext2D,
+    ctx: IRenderer,
   ) {
     if (!healthBar) {
       return;
@@ -1781,15 +1781,15 @@ export class MapRenderer {
 
     ctx.drawImage(
       this.damageNumberCanvas,
-      position.x - this.damageNumberCanvas.width / 2,
-      position.y - 35 + healthBar.ticks,
+      Math.floor(position.x - this.damageNumberCanvas.width / 2),
+      Math.floor(position.y - 35 + healthBar.ticks),
     );
   }
 
   renderEmote(
     emote: Emote,
     position: { x: number; y: number },
-    ctx: CanvasRenderingContext2D,
+    ctx: IRenderer,
   ) {
     emote.renderedFirstFrame = true;
 
@@ -1806,7 +1806,7 @@ export class MapRenderer {
       return;
     }
 
-    ctx.globalAlpha = emote.ticks / EMOTE_ANIMATION_TICKS;
+    ctx.setAlpha(emote.ticks / EMOTE_ANIMATION_TICKS);
 
     ctx.drawImage(
       atlas,
@@ -1820,12 +1820,12 @@ export class MapRenderer {
       frame.h,
     );
 
-    ctx.globalAlpha = 1;
+    ctx.setAlpha(1);
   }
 
   private renderEffectBehind(
     effect: EffectAnimation,
-    ctx: CanvasRenderingContext2D,
+    ctx: IRenderer,
   ) {
     const frame = this.client.atlas.getEffectBehindFrame(
       effect.id,
@@ -1869,7 +1869,7 @@ export class MapRenderer {
 
   private renderEffectTransparent(
     effect: EffectAnimation,
-    ctx: CanvasRenderingContext2D,
+    ctx: IRenderer,
   ) {
     const frame = this.client.atlas.getEffectTransparentFrame(
       effect.id,
@@ -1888,7 +1888,7 @@ export class MapRenderer {
       return;
     }
 
-    ctx.globalAlpha = 0.4;
+    ctx.setAlpha(0.4);
     ctx.drawImage(
       atlas,
       frame.x,
@@ -1910,12 +1910,12 @@ export class MapRenderer {
       frame.w,
       frame.h,
     );
-    ctx.globalAlpha = 1;
+    ctx.setAlpha(1);
   }
 
   private renderEffectFront(
     effect: EffectAnimation,
-    ctx: CanvasRenderingContext2D,
+    ctx: IRenderer,
   ) {
     const frame = this.client.atlas.getEffectFrontFrame(
       effect.id,
